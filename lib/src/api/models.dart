@@ -59,6 +59,7 @@ class Booking {
     this.pickupCode,
     this.cancelReason,
     this.consumerConfirmed = false,
+    this.zone = 'default',
   });
 
   factory Booking.fromJson(Map<String, dynamic> j) => Booking(
@@ -84,6 +85,7 @@ class Booking {
         pickupCode: j['pickup_code'] as String?,
         cancelReason: j['cancel_reason'] as String?,
         consumerConfirmed: j['consumer_confirmed'] == true,
+        zone: _s(j['zone'], 'default'),
       );
 
   final String id;
@@ -103,6 +105,8 @@ class Booking {
   final String? pickupCode;
   final String? cancelReason;
   final bool consumerConfirmed;
+  /// Namespace slug; pre-zone payloads read as the default zone.
+  final String zone;
 
   double? get fare => finalFare ?? estimatedFare;
   bool get isGoods => kind == BookingKind.goods;
@@ -119,6 +123,7 @@ class Provider {
     this.goodsCapable = false,
     this.verified = false,
     this.online = false,
+    this.zone = 'default',
   });
 
   factory Provider.fromJson(Map<String, dynamic> j) => Provider(
@@ -134,6 +139,7 @@ class Provider {
         goodsCapable: j['goods_capable'] == true,
         verified: j['verified'] == true,
         online: j['online'] == true,
+        zone: _s(j['zone'], 'default'),
       );
 
   final String id;
@@ -145,6 +151,8 @@ class Provider {
   final bool goodsCapable;
   final bool verified;
   final bool online;
+  /// Namespace slug; pre-zone payloads read as the default zone.
+  final String zone;
 
   bool get isActive => status == 'active';
 }

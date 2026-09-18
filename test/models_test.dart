@@ -25,6 +25,12 @@ void main() {
     expect(b.id, '');
   });
 
+  test('zone defaults and parses', () {
+    expect(Booking.fromJson({}).zone, 'default');
+    expect(Booking.fromJson({'zone': 'north'}).zone, 'north');
+    expect(Provider.fromJson({}).zone, 'default');
+  });
+
   test('invoice math fields default to zero', () {
     final i = Invoice.fromJson({'provider_id': 'p'});
     expect(i.rides, 0);

@@ -68,5 +68,16 @@ class CoreStrings {
       'en': 'Verify',
       'hi': 'सत्यापित करें',
     },
+    // Duty polish keys ship English-only: unreviewed locales fall back
+    // to English (never the key) until KN/TA/TE native review lands.
+    'zone': {
+      'en': 'Zone',
+    },
+    'enterPickupCode': {
+      'en': 'Enter the 4-digit pickup code',
+    },
+    'noDriversInZone': {
+      'en': 'No active drivers in this zone yet. Register one first.',
+    },
   };
 }
