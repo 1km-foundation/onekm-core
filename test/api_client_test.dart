@@ -121,4 +121,31 @@ void main() {
     expect(page.total, 0);
     expect(page.hasMore, isFalse);
   });
+
+  test('postMultipart sends the file as multipart', () async {
+    http.BaseRequest? seen;
+    List<int> sentBytes = [];
+    final a = api((req) async {
+      seen = req;
+      sentBytes = req.bodyBytes;
+      return json({
+        'ok': true,
+        'data': {'url': '/api/v1/uploads/f.jpg'}
+      }, 201);
+    });
+    final data = await a.postMultipart('/uploads',
+        field: 'file',
+        bytes: [1, 2, 3],
+        filename: 'f.jpg',
+        contentType: 'image/jpeg') as Map;
+    expect(data['url'], '/api/v1/uploads/f.jpg');
+    // MockClient normalizes to a plain Request carrying the framed body.
+    final sent = seen!;
+    expect(sent.headers['content-type'], contains('multipart/form-data'));
+    expect(sent.headers['content-type'], contains('boundary='));
+    final body = String.fromCharCodes(sentBytes);
+    expect(body, contains('name="file"'));
+    expect(body, contains('f.jpg'));
+    expect(body, contains('image/jpeg'));
+  });
 }

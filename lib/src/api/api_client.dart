@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 /// Server error envelope: `{"ok":false,"error":{"code","message"}}`.
 /// Thrown for every non-2xx response (including 410 Gone and 429).
@@ -99,6 +100,31 @@ class OneKmApi {
     String? idempotencyKey,
   }) =>
       _data('DELETE', path, query: query, idempotencyKey: idempotencyKey);
+
+  /// Multipart file upload (provider documents). Returns the decoded
+  /// `data` payload (`{id, name, size, content_type, url}`).
+  Future<dynamic> postMultipart(
+    String path, {
+    required String field,
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    final uri = _uri(path, null);
+    final headers = await _headers();
+    headers.remove('Content-Type');
+    final req = http.MultipartRequest('POST', uri)
+      ..headers.addAll(headers)
+      ..files.add(http.MultipartFile.fromBytes(
+        field,
+        bytes,
+        filename: filename,
+        contentType: MediaType.parse(contentType),
+      ));
+    final streamed = await _client.send(req).timeout(timeout);
+    final res = await http.Response.fromStream(streamed);
+    return _envelope(res)['data'];
+  }
 
   /// GET with `meta{total,limit,offset}` parsed into a [Page] of raw maps.
   Future<PagedList<Map<String, dynamic>>> getPage(
