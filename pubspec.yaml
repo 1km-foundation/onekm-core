@@ -1,0 +1,25 @@
+name: onekm_core
+description: Shared foundation for the 1KM apps (user, provider, teams) — API client, auth session, reference cache, connectivity, strings, theme.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.3
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  connectivity_plus: ^7.0.0
+  flutter_secure_storage: ^10.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  http: ^1.4.0
+  intl: ^0.20.2
+  jwt_decoder: ^2.0.1
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

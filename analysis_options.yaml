@@ -1,0 +1,5 @@
+# This file configures the static analysis results for the project.
+analyzer:
+  exclude:
+    - build/**
+include: package:flutter_lints/flutter.yaml
