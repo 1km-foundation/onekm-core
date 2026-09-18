@@ -9,6 +9,10 @@ import '../../onekm_core.dart';
 /// code step, single screen, no router needed inside. The host app shows
 /// this on its login route and navigates on [SessionController] changes.
 ///
+/// [title] is optional: when null no app bar renders — the per-app
+/// wordmark above the form already says which app this is, so an
+/// explicit "Sign in" label would just repeat it.
+///
 /// A 401 on verify means a wrong code *or* (providers) an account still
 /// under verification — the server answers identically by design, so
 /// [pendingNote] surfaces that hint where relevant.
@@ -17,14 +21,18 @@ class OtpFlow extends StatefulWidget {
     super.key,
     required this.session,
     required this.controller,
-    this.title = 'Sign in',
+    this.title,
     this.pendingNote,
+    this.logoVariant = OneKmLogoVariant.user,
   });
 
   final Session session;
   final SessionController controller;
-  final String title;
+  final String? title;
   final String? pendingNote;
+
+  /// Per-app wordmark shown above the form.
+  final OneKmLogoVariant logoVariant;
 
   @override
   State<OtpFlow> createState() => _OtpFlowState();
@@ -180,8 +188,9 @@ class _OtpFlowState extends State<OtpFlow> {
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
+    final title = widget.title;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: title == null ? null : AppBar(title: Text(title)),
       body: SafeArea(
         child: Padding(
           padding: kPaddingPage,
@@ -189,7 +198,9 @@ class _OtpFlowState extends State<OtpFlow> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!_codeStep) ...[
-                const Center(child: OneKmLogo(height: 44)),
+                Center(
+                    child: OneKmLogo(
+                        height: 44, variant: widget.logoVariant)),
                 const SizedBox(height: 16),
                 const Text(
                   'Enter your mobile number. We will text you a login code.',

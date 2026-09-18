@@ -27,6 +27,24 @@ void main() {
         contains('logo_light.svg'));
   });
 
+  testWidgets('variants resolve their own assets', (tester) async {
+    for (final entry in {
+      OneKmLogoVariant.user: 'logo_dark.svg',
+      OneKmLogoVariant.provider: 'logo_dark_provider.svg',
+      OneKmLogoVariant.teams: 'logo_dark_teams.svg',
+    }.entries) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: OneKmLogo(variant: entry.key)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final svg = tester.widget<SvgPicture>(find.byType(SvgPicture));
+      expect((svg.bytesLoader as SvgAssetLoader).assetName,
+          contains(entry.value));
+    }
+  });
+
   testWidgets('logo renders on splash and login', (tester) async {
     // Splash shows the mark above the title.
     final session = Session(

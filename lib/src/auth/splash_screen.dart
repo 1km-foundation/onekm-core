@@ -15,15 +15,22 @@ class SplashScreen extends StatefulWidget {
     super.key,
     required this.session,
     required this.controller,
-    this.title = '1KM',
+    this.title,
     this.subtitle,
+    this.logoVariant = OneKmLogoVariant.user,
     this.cacheOpener = ReferenceCache.open,
   });
 
   final Session session;
   final SessionController controller;
-  final String title;
+
+  /// Optional word under the logo; null skins it (the per-app wordmark
+  /// already identifies the app).
+  final String? title;
   final String? subtitle;
+
+  /// Per-app wordmark shown above the title.
+  final OneKmLogoVariant logoVariant;
   final Future<ReferenceCache> Function() cacheOpener;
 
   @override
@@ -65,12 +72,13 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const OneKmLogo(height: 56),
+              OneKmLogo(height: 56, variant: widget.logoVariant),
               const SizedBox(height: 12),
-              Text(
-                widget.title,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              if (widget.title != null)
+                Text(
+                  widget.title!,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
               if (widget.subtitle != null) ...[
                 const SizedBox(height: 8),
                 Text(widget.subtitle!),
