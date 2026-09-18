@@ -24,8 +24,8 @@ class ApiException implements Exception {
 }
 
 /// A paged list: `{"ok":true,"data":[…],"meta":{total,limit,offset}}`.
-class Page<T> {
-  const Page({
+class PagedList<T> {
+  const PagedList({
     required this.items,
     required this.total,
     required this.limit,
@@ -79,21 +79,29 @@ class OneKmApi {
     String path, {
     Map<String, String>? query,
     Object? body,
+    String? idempotencyKey,
   }) =>
-      _data('PATCH', path, query: query, body: body);
+      _data('PATCH', path,
+          query: query, body: body, idempotencyKey: idempotencyKey);
 
   Future<dynamic> put(
     String path, {
     Map<String, String>? query,
     Object? body,
+    String? idempotencyKey,
   }) =>
-      _data('PUT', path, query: query, body: body);
+      _data('PUT', path,
+          query: query, body: body, idempotencyKey: idempotencyKey);
 
-  Future<dynamic> delete(String path, {Map<String, String>? query}) =>
-      _data('DELETE', path, query: query);
+  Future<dynamic> delete(
+    String path, {
+    Map<String, String>? query,
+    String? idempotencyKey,
+  }) =>
+      _data('DELETE', path, query: query, idempotencyKey: idempotencyKey);
 
   /// GET with `meta{total,limit,offset}` parsed into a [Page] of raw maps.
-  Future<Page<Map<String, dynamic>>> getPage(
+  Future<PagedList<Map<String, dynamic>>> getPage(
     String path, {
     Map<String, String>? query,
   }) async {
@@ -104,7 +112,7 @@ class OneKmApi {
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
-    return Page(
+    return PagedList(
       items: items,
       total: (meta['total'] as num?)?.toInt() ?? items.length,
       limit: (meta['limit'] as num?)?.toInt() ?? items.length,

@@ -177,6 +177,37 @@ void main() {
     expect(await s.subject(), 'boss');
   });
 
+  test('providerId reads the pid claim, null without it', () async {
+    String part(Object o) =>
+        base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
+    Future<Session> sessionWith(Map<String, Object?> claims) async {
+      final store = MemoryTokenStore();
+      final token =
+          '${part({'alg': 'HS256'})}.${part({...claims, 'exp': 9999999999})}.sig';
+      await store.write('access', token);
+      return Session(
+        baseUrl: 'http://x.test',
+        apiKey: 'k',
+        role: AuthRole.provider,
+        store: store,
+        client: happyBackend(),
+      );
+    }
+
+    expect(
+      await (await sessionWith({
+        'sub': '9000000001',
+        'pid': 'provider-uuid-1'
+      }))
+          .providerId(),
+      'provider-uuid-1',
+    );
+    expect(
+      await (await sessionWith({'sub': '9876543210'})).providerId(),
+      isNull,
+    );
+  });
+
   test('controller tracks sign-in lifecycle', () async {
     final controller = SessionController(
       session(client: happyBackend()),

@@ -45,6 +45,18 @@ void main() {
     expect(seen!.headers['Idempotency-Key'], 'abc');
   });
 
+  test('PATCH/PUT/DELETE send idempotency keys too', () async {
+    final seen = <String, String?>{};
+    final a = api((req) async {
+      seen[req.method] = req.headers['Idempotency-Key'];
+      return json({'ok': true, 'data': {}}, 200);
+    });
+    await a.patch('/x', idempotencyKey: 'p1');
+    await a.put('/x', idempotencyKey: 'p2');
+    await a.delete('/x', idempotencyKey: 'p3');
+    expect(seen, {'PATCH': 'p1', 'PUT': 'p2', 'DELETE': 'p3'});
+  });
+
   test('error envelope maps to flags', () async {
     for (final status in [400, 401, 403, 404, 409, 410, 422, 429, 503]) {
       final a = api((_) async => json(

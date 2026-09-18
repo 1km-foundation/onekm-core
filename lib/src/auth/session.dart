@@ -158,6 +158,20 @@ class Session {
     }
   }
 
+  /// Provider registry id (`pid` claim) for provider tokens, else null.
+  /// Duty screens use this to scope every call to the caller's own record.
+  Future<String?> providerId() async {
+    final token = await _store.read(_accessKey);
+    if (token == null) return null;
+    try {
+      final payload = JwtDecoder.decode(token);
+      final pid = payload['pid'];
+      return pid is String && pid.isNotEmpty ? pid : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Valid access token, refreshing first when under 60s of life.
   Future<String> accessToken() async {
     final current = await _store.read(_accessKey);
