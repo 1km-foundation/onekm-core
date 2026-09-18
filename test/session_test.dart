@@ -135,4 +135,62 @@ void main() {
     await s.signOut();
     expect(await s.signedIn, isFalse);
   });
+
+  test('password login stores the pair (teams app)', () async {
+    final client = MockClient((req) async {
+      if (req.url.path == '/admin/auth/login') {
+        expect(reqBody(req), containsPair('identity', 'boss'));
+        return envelope({
+          'access_token': fakeJwt(expInSeconds: 3600),
+          'refresh_token': 'r9',
+          'expires_in': 3600,
+        });
+      }
+      return http.Response('not found', 404);
+    });
+    final s = Session(
+      baseUrl: 'http://x.test',
+      apiKey: 'k',
+      role: AuthRole.staff,
+      store: MemoryTokenStore(),
+      client: client,
+    );
+    await s.loginWithPassword('boss', 'secret-1');
+    expect(await s.signedIn, isTrue);
+    expect(await s.subject(), '1');
+  });
+
+  test('subject reads the sub claim', () async {
+    final store = MemoryTokenStore();
+    String part(Object o) =>
+        base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
+    final token =
+        '${part({'alg': 'HS256'})}.${part({'sub': 'boss', 'exp': 9999999999})}.sig';
+    await store.write('access', token);
+    final s = Session(
+      baseUrl: 'http://x.test',
+      apiKey: 'k',
+      role: AuthRole.staff,
+      store: store,
+      client: happyBackend(),
+    );
+    expect(await s.subject(), 'boss');
+  });
+
+  test('controller tracks sign-in lifecycle', () async {
+    final controller = SessionController(
+      session(client: happyBackend()),
+    );
+    expect(controller.ready, isFalse);
+    var notified = 0;
+    controller.addListener(() => notified++);
+    await controller.refresh();
+    expect(controller.ready, isTrue);
+    expect(controller.signedIn, isFalse);
+    await controller.adoptedSignIn();
+    expect(controller.signedIn, isTrue);
+    await controller.signOut();
+    expect(controller.signedIn, isFalse);
+    expect(notified, greaterThanOrEqualTo(3));
+  });
 }

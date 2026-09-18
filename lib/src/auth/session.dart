@@ -84,6 +84,10 @@ class Session {
   final TokenStore _store;
   final http.Client _client;
 
+  /// Shared HTTP client (connection pooling; also lets screens reuse the
+  /// session's client — including test doubles).
+  http.Client get httpClient => _client;
+
   /// Called (once per loss) when stored credentials stop working.
   final Future<void> Function()? onAuthLoss;
 
@@ -127,6 +131,31 @@ class Session {
     }) as Map<String, dynamic>;
     await _store.write(_accessKey, '${data['access_token']}');
     await _store.write(_refreshKey, '${data['refresh_token']}');
+  }
+
+  /// Staff/service login (teams app): username or email + password.
+  /// Same token pair shape as OTP verify.
+  Future<void> loginWithPassword(String identity, String password) async {
+    final data = await _api.post('/admin/auth/login', body: {
+      'identity': identity,
+      'password': password,
+    }) as Map<String, dynamic>;
+    await _store.write(_accessKey, '${data['access_token']}');
+    await _store.write(_refreshKey, '${data['refresh_token']}');
+  }
+
+  /// Login subject (`sub` claim: phone for apps, username for staff),
+  /// or null when signed out / undecodable.
+  Future<String?> subject() async {
+    final token = await _store.read(_accessKey);
+    if (token == null) return null;
+    try {
+      final payload = JwtDecoder.decode(token);
+      final sub = payload['sub'];
+      return sub is String && sub.isNotEmpty ? sub : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Valid access token, refreshing first when under 60s of life.

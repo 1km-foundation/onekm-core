@@ -60,5 +60,13 @@ class CoreStrings {
       'en': 'Call support',
       'hi': 'सहायता को कॉल करें',
     },
+    'sendCode': {
+      'en': 'Send code',
+      'hi': 'कोड भेजें',
+    },
+    'verify': {
+      'en': 'Verify',
+      'hi': 'सत्यापित करें',
+    },
   };
 }
