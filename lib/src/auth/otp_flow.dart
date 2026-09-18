@@ -134,6 +134,8 @@ class _OtpFlowState extends State<OtpFlow> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!_codeStep) ...[
+                const Center(child: OneKmLogo(height: 44)),
+                const SizedBox(height: 16),
                 const Text(
                   'Enter your mobile number. We will text you a login code.',
                 ),

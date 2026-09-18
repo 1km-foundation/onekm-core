@@ -65,6 +65,8 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const OneKmLogo(height: 56),
+              const SizedBox(height: 12),
               Text(
                 widget.title,
                 style: Theme.of(context).textTheme.headlineMedium,

@@ -11,4 +11,5 @@ export 'src/l10n/strings.dart';
 export 'src/maps/maps.dart';
 export 'src/net/retry.dart';
 export 'src/sync/reference_cache.dart';
+export 'src/theme/logo.dart';
 export 'src/theme/tokens.dart';
