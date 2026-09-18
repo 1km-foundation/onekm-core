@@ -22,6 +22,20 @@ http.Response json(Object body, int status) => http.Response(
     );
 
 void main() {
+  test('requests carry the /api/v1 prefix', () async {
+    http.Request? seen;
+    final a = api((req) async {
+      seen = req;
+      return json({'ok': true, 'data': {}}, 200);
+    });
+    await a.get('/bookings');
+    // Regression: unprefixed paths 404 against the server (the box
+    // logs them as bare /bookings with no match).
+    expect(seen!.url.toString(), 'http://x.test/api/v1/bookings');
+    await a.post('/auth/otp/request', body: {});
+    expect(seen!.url.toString(), 'http://x.test/api/v1/auth/otp/request');
+  });
+
   test('GET returns data and sends identity headers', () async {
     http.Request? seen;
     final a = api((req) async {

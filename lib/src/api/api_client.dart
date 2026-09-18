@@ -198,8 +198,14 @@ class OneKmApi {
         ...await headers(),
       };
 
+  /// All product routes live under `/api/v1` (open routes like `/map`
+  /// and `/health` never go through this client — the map uses a
+  /// WebView URL, health is never polled). Centralizing the prefix here
+  /// keeps every feature call site short and unbreakable.
+  static const apiPrefix = '/api/v1';
+
   Uri _uri(String path, Map<String, String>? query) {
-    final base = Uri.parse('$baseUrl$path');
+    final base = Uri.parse('$baseUrl$apiPrefix$path');
     if (query == null || query.isEmpty) return base;
     return base.replace(
         queryParameters: {...base.queryParameters, ...query});
