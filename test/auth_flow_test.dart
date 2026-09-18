@@ -111,7 +111,22 @@ void main() {
     await tester.enterText(find.byType(TextField), '123');
     await tester.tap(find.byType(FilledButton));
     await tester.pump();
-    expect(find.text('Enter a valid mobile number'), findsOneWidget);
+    expect(find.text('Enter a valid 10-digit mobile number'), findsOneWidget);
+  });
+
+  testWidgets('country code is shown and accepted', (tester) async {
+    final session = testSession();
+    final controller = SessionController(session);
+    await pumpFlow(tester, session, controller);
+
+    // The +91 affordance is visible before typing.
+    expect(find.text('+91 '), findsOneWidget);
+    // A pasted +91 number passes validation and requests a code.
+    await tester.enterText(find.byType(TextField), '+91 98765 43210');
+    await tester.tap(find.byType(FilledButton));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.textContaining('Code sent'), findsOneWidget);
   });
 
   group('splash', () {

@@ -43,10 +43,18 @@ class _OtpFlowState extends State<OtpFlow> {
     super.dispose();
   }
 
+  /// Mirrors the server's `normalize_phone`: bare 10-digit mobiles,
+  /// `0`-trunk (11) and `91`-prefixed (12) forms all pass; anything
+  /// else gets an inline error instead of a server round trip.
   String? _validPhone(String raw) {
     final digits = raw.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 10 || digits.length > 13) {
-      return 'Enter a valid mobile number';
+    final local = digits.length == 12 && digits.startsWith('91')
+        ? digits.substring(2)
+        : digits.length == 11 && digits.startsWith('0')
+            ? digits.substring(1)
+            : digits;
+    if (local.length != 10 || !'6789'.contains(local[0])) {
+      return 'Enter a valid 10-digit mobile number';
     }
     return null;
   }
@@ -139,6 +147,7 @@ class _OtpFlowState extends State<OtpFlow> {
                   decoration: const InputDecoration(
                     labelText: 'Mobile number',
                     hintText: '98765 43210',
+                    prefixText: '+91 ',
                     border: OutlineInputBorder(),
                   ),
                   onSubmitted: (_) => _request(),
