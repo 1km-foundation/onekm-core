@@ -15,6 +15,24 @@ class SessionController extends ChangeNotifier {
   bool get ready => _ready;
   bool get signedIn => _signedIn;
 
+  /// First-run intro state. The router reads this live on every
+  /// redirect (it refresh-listens on this controller), so completing
+  /// onboarding routes forward instead of bouncing back.
+  bool _onboardingSeen = true;
+  bool get onboardingSeen => _onboardingSeen;
+
+  /// Seed from local prefs at boot (before any redirect runs).
+  void initOnboardingSeen(bool seen) {
+    _onboardingSeen = seen;
+  }
+
+  /// Persist + flip when the user finishes onboarding; notifies so the
+  /// pending redirect re-evaluates immediately.
+  void markOnboardingSeen() {
+    _onboardingSeen = true;
+    notifyListeners();
+  }
+
   Future<void> refresh() async {
     try {
       _signedIn = await session.signedIn;

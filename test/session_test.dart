@@ -73,6 +73,19 @@ Session session({
     );
 
 void main() {
+  test('onboarding flag defaults past, seeds, and flips with notify', () {
+    final c = SessionController(session(client: happyBackend()));
+    // Fresh installs boot past onboarding only after main() seeds it.
+    expect(c.onboardingSeen, isTrue);
+    c.initOnboardingSeen(false);
+    expect(c.onboardingSeen, isFalse);
+    var notified = false;
+    c.addListener(() => notified = true);
+    c.markOnboardingSeen();
+    expect(c.onboardingSeen, isTrue);
+    expect(notified, isTrue);
+  });
+
   test('otp login stores the pair', () async {
     final s = session(client: happyBackend());
     expect(await s.signedIn, isFalse);
