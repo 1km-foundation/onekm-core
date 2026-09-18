@@ -5,6 +5,7 @@ export 'src/api/api_client.dart';
 export 'src/api/models.dart';
 export 'src/auth/session.dart';
 export 'src/auth/session_controller.dart';
+export 'src/auth/onboarding.dart';
 export 'src/auth/otp_flow.dart';
 export 'src/auth/splash_screen.dart';
 export 'src/l10n/strings.dart';
