@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -35,9 +37,14 @@ class _OtpFlowState extends State<OtpFlow> {
   String? _error;
   final _phoneCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
+  Timer? _cooldownTimer;
+
+  /// Seconds until resend is allowed (matches the server resend gap).
+  var _cooldown = 0;
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     super.dispose();
@@ -77,6 +84,7 @@ class _OtpFlowState extends State<OtpFlow> {
         _codeStep = true;
         _busy = false;
       });
+      _startCooldown();
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -94,10 +102,57 @@ class _OtpFlowState extends State<OtpFlow> {
     }
   }
 
+  /// Resend uses the same endpoint (the server enforces its cooldown
+  /// with 429, surfaced as the rate-limit message on early taps).
+  Future<void> _resend() async {
+    if (_busy || _cooldown > 0) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await withRetry(() => widget.session.requestOtp(_phone));
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _startCooldown();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = e.rateLimited
+            ? 'Too many tries — wait a bit, then retry.'
+            : CoreStrings.of('tryAgain', Localizations.localeOf(context));
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = CoreStrings.of('tryAgain', Localizations.localeOf(context));
+      });
+    }
+  }
+
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    setState(() => _cooldown = 30);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_cooldown <= 1) {
+        t.cancel();
+        setState(() => _cooldown = 0);
+      } else {
+        setState(() => _cooldown = _cooldown - 1);
+      }
+    });
+  }
+
   Future<void> _verify() async {
     final code = _codeCtrl.text.trim();
-    if (code.length != 6) {
-      setState(() => _error = 'Enter the 6-digit code');
+    if (_busy || code.length != 6) {
+      if (code.length != 6) setState(() => _error = 'Enter the 6-digit code');
       return;
     }
     setState(() {
@@ -167,7 +222,19 @@ class _OtpFlowState extends State<OtpFlow> {
                     border: OutlineInputBorder(),
                     counterText: '',
                   ),
+                  onChanged: (_) {
+                    // Auto-submit a complete code (Belya pattern); the
+                    // button stays for pastes that need a nudge.
+                    if (_codeCtrl.text.trim().length == 6) _verify();
+                  },
                   onSubmitted: (_) => _verify(),
+                ),
+                TextButton(
+                  onPressed:
+                      _busy || _cooldown > 0 ? null : () => _resend(),
+                  child: Text(_cooldown > 0
+                      ? 'Resend code in $_cooldown s'
+                      : 'Resend code'),
                 ),
                 if (widget.pendingNote != null) ...[
                   const SizedBox(height: 8),

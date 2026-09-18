@@ -53,6 +53,17 @@ Future<bool> launchExternalMaps({
   return launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
+/// Open the dialer for a phone number (call-driver / call-customer
+/// cards, shown only while the ride is active). Returns false when the
+/// number has nothing dialable.
+Future<bool> launchPhoneCall(String phone) {
+  final digits = phone.replaceAll(RegExp(r'[^+\d]'), '');
+  if (digits.replaceAll(RegExp(r'\D'), '').isEmpty) {
+    return Future.value(false);
+  }
+  return launchUrl(Uri.parse('tel:$digits'));
+}
+
 /// Leaflet-in-WebView for the server map page. [viewBuilder] is a test
 /// seam (real WebViews need platform channels, unavailable in widget
 /// tests): production omits it, tests inject a stub.

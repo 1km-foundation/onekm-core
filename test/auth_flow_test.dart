@@ -129,6 +129,26 @@ void main() {
     expect(find.textContaining('Code sent'), findsOneWidget);
   });
 
+  testWidgets('code auto-submits and resend cools down', (tester) async {
+    final session = testSession();
+    final controller = SessionController(session);
+    await pumpFlow(tester, session, controller);
+
+    await tester.enterText(find.byType(TextField), '9876543210');
+    await tester.tap(find.byType(FilledButton));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.textContaining('Code sent'), findsOneWidget);
+    // Cooldown copy replaces the resend action for 30 s.
+    expect(find.text('Resend code in 30 s'), findsOneWidget);
+
+    // Six digits submit without tapping Verify.
+    await tester.enterText(find.byType(TextField), '123456');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(controller.signedIn, isTrue);
+  });
+
   group('splash', () {
     late ReferenceCache cache;
 
