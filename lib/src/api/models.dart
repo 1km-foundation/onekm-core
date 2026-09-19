@@ -124,6 +124,7 @@ class Provider {
     this.verified = false,
     this.online = false,
     this.zone = 'default',
+    this.documents = const [],
   });
 
   factory Provider.fromJson(Map<String, dynamic> j) => Provider(
@@ -140,6 +141,10 @@ class Provider {
         verified: j['verified'] == true,
         online: j['online'] == true,
         zone: _s(j['zone'], 'default'),
+        documents: (j['documents'] as List?)
+                ?.whereType<String>()
+                .toList() ??
+            const [],
       );
 
   final String id;
@@ -153,6 +158,8 @@ class Provider {
   final bool online;
   /// Namespace slug; pre-zone payloads read as the default zone.
   final String zone;
+  /// Uploaded document URLs (licence, RC) for the verify step.
+  final List<String> documents;
 
   bool get isActive => status == 'active';
 }
@@ -231,6 +238,7 @@ class Dispute {
     required this.description,
     required this.status,
     this.urgent = false,
+    this.zone = 'default',
   });
 
   factory Dispute.fromJson(Map<String, dynamic> j) => Dispute(
@@ -240,6 +248,7 @@ class Dispute {
         description: _s(j['description']),
         status: _s(j['status'], 'open'),
         urgent: j['urgent'] == true,
+        zone: _s(j['zone'], 'default'),
       );
 
   final String id;
@@ -248,6 +257,7 @@ class Dispute {
   final String description;
   final String status;
   final bool urgent;
+  final String zone;
 }
 
 class Review {
@@ -257,6 +267,8 @@ class Review {
     required this.rating,
     this.providerId,
     this.comment,
+    this.reporter,
+    this.zone = 'default',
   });
 
   factory Review.fromJson(Map<String, dynamic> j) => Review(
@@ -265,6 +277,8 @@ class Review {
         rating: _s(j['rating'], 'good'),
         providerId: j['provider_id'] as String?,
         comment: j['comment'] as String?,
+        reporter: j['reporter'] as String?,
+        zone: _s(j['zone'], 'default'),
       );
 
   final String id;
@@ -272,6 +286,8 @@ class Review {
   final String rating;
   final String? providerId;
   final String? comment;
+  final String? reporter;
+  final String zone;
 
   bool get isIssue => rating == 'issue';
 }

@@ -90,20 +90,28 @@ class _MapViewState extends State<MapView> {
     super.initState();
     // The platform controller needs native channels: only build it on
     // the real path (tests inject viewBuilder and never touch this).
+    // Widget tests and unsupported platforms have no WebView
+    // implementation — fall back to a static placeholder instead of
+    // throwing during build.
     if (widget.viewBuilder == null) {
-      _controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onPageFinished: (_) {
-              if (mounted) setState(() => _ready = true);
-            },
-            onWebResourceError: (_) {
-              if (mounted) setState(() => _ready = true);
-            },
-          ),
-        )
-        ..loadRequest(Uri.parse(widget.url));
+      try {
+        _controller = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onPageFinished: (_) {
+                if (mounted) setState(() => _ready = true);
+              },
+              onWebResourceError: (_) {
+                if (mounted) setState(() => _ready = true);
+              },
+            ),
+          )
+          ..loadRequest(Uri.parse(widget.url));
+      } catch (_) {
+        _controller = null;
+        _ready = true;
+      }
     } else {
       _ready = true;
     }
@@ -113,9 +121,27 @@ class _MapViewState extends State<MapView> {
   Widget build(BuildContext context) {
     final stub = widget.viewBuilder;
     if (stub != null) return stub(widget.url);
+    final controller = _controller;
+    if (controller == null) {
+      // No platform WebView (widget tests, unsupported targets):
+      // static placeholder keeps the surrounding screen testable.
+      return Container(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: const Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.map_outlined),
+              SizedBox(width: 8),
+              Text('Map preview unavailable here'),
+            ],
+          ),
+        ),
+      );
+    }
     return Stack(
       children: [
-        WebViewWidget(controller: _controller!),
+        WebViewWidget(controller: controller),
         if (!_ready) Center(child: CircularProgressIndicator()),
       ],
     );

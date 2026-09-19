@@ -38,17 +38,35 @@ class ReferenceCache {
 
   Future<void> invalidate() => _box.clear();
 
-  /// Published fares, cached 6h. Returns raw entry maps.
-  Future<List<Map<String, dynamic>>> rateCard(OneKmApi api) async {
-    final cached = getJson('rate_card');
+  /// Published fares, cached 6h per zone. Returns raw entry maps.
+  /// `zone` defaults to `default`; pass the booking zone so multi-zone
+  /// devices never show another zone's fares.
+  Future<List<Map<String, dynamic>>> rateCard(
+    OneKmApi api, {
+    String zone = 'default',
+  }) async {
+    final key = 'rate_card_$zone';
+    final cached = getJson(key);
     if (cached is List) {
       return cached.whereType<Map>().map(Map<String, dynamic>.from).toList();
     }
-    final data = await api.get('/rate-card') as List;
+    final data = await api.get('/rate-card', query: {'zone': zone}) as List;
     final entries =
         data.whereType<Map>().map(Map<String, dynamic>.from).toList();
-    await putJson('rate_card', entries);
+    await putJson(key, entries);
     return entries;
+  }
+
+  /// Configured zone slugs (`GET /rate-card/zones`), cached 6h.
+  Future<List<String>> rateZones(OneKmApi api) async {
+    final cached = getJson('rate_zones');
+    if (cached is List) {
+      return cached.whereType<String>().toList();
+    }
+    final data = await api.get('/rate-card/zones') as List;
+    final zones = data.whereType<String>().toList();
+    await putJson('rate_zones', zones);
+    return zones;
   }
 
   /// Client bootstrap (`GET /config`), cached 24h.

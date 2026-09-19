@@ -131,6 +131,10 @@ class Session {
     }) as Map<String, dynamic>;
     await _store.write(_accessKey, '${data['access_token']}');
     await _store.write(_refreshKey, '${data['refresh_token']}');
+    // Best-effort push registration so the server fan-out has tokens.
+    // Real FCM tokens need firebase_messaging; until wired, register a
+    // stable install id (log-mode dispatch still exercises end-to-end).
+    await _registerInstall();
   }
 
   /// Staff/service login (teams app): username or email + password.
@@ -142,6 +146,22 @@ class Session {
     }) as Map<String, dynamic>;
     await _store.write(_accessKey, '${data['access_token']}');
     await _store.write(_refreshKey, '${data['refresh_token']}');
+    await _registerInstall();
+  }
+
+  /// Stable install id for the push registry (no Firebase plugin yet).
+  Future<void> _registerInstall() async {
+    try {
+      var install = await _store.read('install');
+      if (install == null || install.length < 10) {
+        install =
+            'install-${DateTime.now().millisecondsSinceEpoch}-${role.name}';
+        await _store.write('install', install);
+      }
+      final api = await this.api;
+      await api.post('/devices',
+          body: {'token': install, 'platform': 'android'});
+    } catch (_) {}
   }
 
   /// Login subject (`sub` claim: phone for apps, username for staff),
@@ -172,6 +192,20 @@ class Session {
     }
   }
 
+  /// Zone writ (`zones` claim) for staff tokens: empty = global.
+  Future<List<String>> zones() async {
+    final token = await _store.read(_accessKey);
+    if (token == null) return const [];
+    try {
+      final payload = JwtDecoder.decode(token);
+      final zones = payload['zones'];
+      if (zones is List) return zones.whereType<String>().toList();
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Valid access token, refreshing first when under 60s of life.
   Future<String> accessToken() async {
     final current = await _store.read(_accessKey);
@@ -195,9 +229,29 @@ class Session {
     }
   }
 
+  /// Server-side logout: revoke the refresh token (best-effort — a
+  /// dead network still clears locally), then drop both tokens.
   Future<void> signOut() async {
+    final refresh = await _store.read(_refreshKey);
+    if (refresh != null) {
+      try {
+        await _api.post('/auth/logout', body: {'refresh_token': refresh});
+      } catch (_) {
+        // Logout never blocks on transport: the refresh stays valid
+        // until expiry, but the client has already dropped it.
+      }
+    }
     await _store.deleteAll();
     await onAuthLoss?.call();
+  }
+
+  /// Register the current device for push fan-out (best-effort).
+  /// Call after login; failures never block the session.
+  Future<void> registerDevice(String token, String platform) async {
+    try {
+      final api = await this.api;
+      await api.post('/devices', body: {'token': token, 'platform': platform});
+    } catch (_) {}
   }
 
   bool _expiringSoon(String token) {
