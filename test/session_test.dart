@@ -35,8 +35,8 @@ Object reqBody(http.Request req) => jsonDecode(req.body) as Object;
 /// Full happy-path backend: OTP request/verify + refresh rotation.
 MockClient happyBackend() => MockClient((req) async {
       final path = req.url.path;
-      if (path == '/auth/otp/request') return envelope({'sent': true});
-      if (path == '/auth/otp/verify') {
+      if (path == '/api/v1/auth/otp/request') return envelope({'sent': true});
+      if (path == '/api/v1/auth/otp/verify') {
         expect(reqBody(req), containsPair('code', '123456'));
         return envelope({
           'access_token': fakeJwt(expInSeconds: 3600),
@@ -44,7 +44,7 @@ MockClient happyBackend() => MockClient((req) async {
           'expires_in': 3600,
         });
       }
-      if (path == '/auth/refresh') {
+      if (path == '/api/v1/auth/refresh') {
         final b = reqBody(req) as Map;
         if (b['refresh_token'] == 'r1') {
           return envelope({
@@ -103,7 +103,7 @@ void main() {
     await store.write('refresh', 'r1');
     final s = session(
       client: MockClient((req) async {
-        if (req.url.path == '/auth/refresh') {
+        if (req.url.path == '/api/v1/auth/refresh') {
           refreshCalls++;
           return envelope({
             'access_token': fakeJwt(expInSeconds: 3600),
@@ -151,7 +151,7 @@ void main() {
 
   test('password login stores the pair (teams app)', () async {
     final client = MockClient((req) async {
-      if (req.url.path == '/admin/auth/login') {
+      if (req.url.path == '/api/v1/admin/auth/login') {
         expect(reqBody(req), containsPair('identity', 'boss'));
         return envelope({
           'access_token': fakeJwt(expInSeconds: 3600),

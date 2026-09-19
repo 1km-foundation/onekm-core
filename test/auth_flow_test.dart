@@ -23,10 +23,10 @@ http.Response envelope(Object data, [int status = 200]) => http.Response(
     );
 
 MockClient backend() => MockClient((req) async {
-      if (req.url.path == '/auth/otp/request') {
+      if (req.url.path == '/api/v1/auth/otp/request') {
         return envelope({'sent': true});
       }
-      if (req.url.path == '/auth/otp/verify') {
+      if (req.url.path == '/api/v1/auth/otp/verify') {
         final b = jsonDecode(req.body) as Map;
         if (b['code'] == '123456') {
           return envelope({
