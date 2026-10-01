@@ -49,7 +49,7 @@ void main() {
     // Splash shows the mark above the title.
     final session = Session(
       baseUrl: 'http://x.test',
-      apiKey: 'k',
+      clientId: 'user-android',
       role: AuthRole.user,
       store: MemoryTokenStore(),
     );
