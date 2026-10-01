@@ -20,7 +20,7 @@ abstract class TokenStore {
 
 class SecureTokenStore implements TokenStore {
   SecureTokenStore({FlutterSecureStorage? storage, this.prefix = 'onekm.'})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
   final String prefix;
@@ -70,16 +70,21 @@ class MemoryTokenStore implements TokenStore {
 class Session {
   Session({
     required this.baseUrl,
-    required this.apiKey,
+    required this.clientId,
     required this.role,
     TokenStore? store,
     http.Client? client,
     this.onAuthLoss,
-  })  : _store = store ?? SecureTokenStore(),
-        _client = client ?? http.Client();
+  }) : _store = store ?? SecureTokenStore(),
+       _client = client ?? http.Client();
 
   final String baseUrl;
-  final String apiKey;
+
+  /// Registry client id (`user-android`, `provider-android`,
+  /// `teams-android`): stamped into `aud`/`client_id` on verify, login
+  /// and refresh so the server's platform gate can tell callers apart.
+  /// Absent in legacy builds = legacy-shaped tokens.
+  final String clientId;
   final AuthRole role;
   final TokenStore _store;
   final http.Client _client;
@@ -94,22 +99,22 @@ class Session {
   static const _accessKey = 'access';
   static const _refreshKey = 'refresh';
 
+  // No shared-key header: caller identity is the Bearer token (plus
+  // `Authorization: ApiKey` static keys for machines). The legacy
+  // `x-api-key` header was never verified server-side.
   OneKmApi get _api => OneKmApi(
-        baseUrl: baseUrl,
-        headers: () async => {'x-api-key': apiKey},
-        client: _client,
-      );
+    baseUrl: baseUrl,
+    headers: () async => <String, String>{},
+    client: _client,
+  );
 
-  /// Authenticated client: injects the current bearer alongside the key.
+  /// Authenticated client: injects the current bearer.
   /// Throws [ApiException.unauthorized] when signed out.
   Future<OneKmApi> get api async {
     final token = await accessToken();
     return OneKmApi(
       baseUrl: baseUrl,
-      headers: () async => {
-        'x-api-key': apiKey,
-        'Authorization': 'Bearer $token',
-      },
+      headers: () async => {'Authorization': 'Bearer $token'},
       client: _client,
     );
   }
@@ -117,18 +122,22 @@ class Session {
   Future<bool> get signedIn async => await _store.read(_accessKey) != null;
 
   Future<void> requestOtp(String phone) async {
-    await _api.post('/auth/otp/request', body: {
-      'phone': phone,
-      'role': role.name,
-    });
+    await _api.post(
+      '/auth/otp/request',
+      body: {'phone': phone, 'role': role.name},
+    );
   }
 
   Future<void> verifyOtp(String phone, String code) async {
-    final data = await _api.post('/auth/otp/verify', body: {
-      'phone': phone,
-      'role': role.name,
-      'code': code,
-    }) as Map<String, dynamic>;
+    final data = await _api.post(
+      '/auth/otp/verify',
+      body: {
+        'phone': phone,
+        'role': role.name,
+        'code': code,
+        'client_id': clientId,
+      },
+    ) as Map<String, dynamic>;
     await _store.write(_accessKey, '${data['access_token']}');
     await _store.write(_refreshKey, '${data['refresh_token']}');
     // Best-effort push registration so the server fan-out has tokens.
@@ -138,12 +147,13 @@ class Session {
   }
 
   /// Staff/service login (teams app): username or email + password.
-  /// Same token pair shape as OTP verify.
+  /// Same token pair shape as OTP verify. Hits the canonical
+  /// `/auth/login` (the `/admin/auth/*` aliases are deprecated).
   Future<void> loginWithPassword(String identity, String password) async {
-    final data = await _api.post('/admin/auth/login', body: {
-      'identity': identity,
-      'password': password,
-    }) as Map<String, dynamic>;
+    final data = await _api.post(
+      '/auth/login',
+      body: {'identity': identity, 'password': password, 'client_id': clientId},
+    ) as Map<String, dynamic>;
     await _store.write(_accessKey, '${data['access_token']}');
     await _store.write(_refreshKey, '${data['refresh_token']}');
     await _registerInstall();
@@ -159,8 +169,10 @@ class Session {
         await _store.write('install', install);
       }
       final api = await this.api;
-      await api.post('/devices',
-          body: {'token': install, 'platform': 'android'});
+      await api.post(
+        '/devices',
+        body: {'token': install, 'platform': 'android'},
+      );
     } catch (_) {}
   }
 
@@ -216,9 +228,12 @@ class Session {
       throw ApiException(401, 'UNAUTHORIZED', 'signed out');
     }
     try {
-      final data = await _api.post('/auth/refresh', body: {
-        'refresh_token': refresh,
-      }) as Map<String, dynamic>;
+      // Re-stamp client_id on rotation so the fresh access token keeps
+      // the caller's aud (absent = legacy-shaped token).
+      final data = await _api.post(
+        '/auth/refresh',
+        body: {'refresh_token': refresh, 'client_id': clientId},
+      ) as Map<String, dynamic>;
       final access = '${data['access_token']}';
       await _store.write(_accessKey, access);
       await _store.write(_refreshKey, '${data['refresh_token']}');
@@ -256,8 +271,7 @@ class Session {
 
   bool _expiringSoon(String token) {
     try {
-      return JwtDecoder.getRemainingTime(token) <
-          const Duration(seconds: 60);
+      return JwtDecoder.getRemainingTime(token) < const Duration(seconds: 60);
     } catch (_) {
       return true;
     }

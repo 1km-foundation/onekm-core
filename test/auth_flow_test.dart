@@ -11,52 +11,62 @@ import 'package:onekm_core/onekm_core.dart';
 String fakeJwt() {
   String part(Object o) =>
       base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
-  final exp =
-      (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
+  final exp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
   return '${part({'alg': 'HS256'})}.${part({'sub': '1', 'exp': exp})}.sig';
 }
 
 http.Response envelope(Object data, [int status = 200]) => http.Response(
-      jsonEncode({'ok': true, 'data': data}),
-      status,
+  jsonEncode({'ok': true, 'data': data}),
+  status,
+  headers: {'Content-Type': 'application/json'},
+);
+
+// NOTE: never `expect` inside the mock handler. Widget-test requests
+// issued from platform-channel callbacks (e.g. onChanged auto-submit)
+// run inside the fake-async guarded flush, where `expect` throws
+// "Guarded function conflict" — swallowed by OtpFlow's catch-all into a
+// generic retry error. Record instead, assert after the pumps.
+MockClient backend({void Function(Map<String, dynamic> body)? onVerify}) =>
+    MockClient((req) async {
+  if (req.url.path == '/api/v1/auth/otp/request') {
+    return envelope({'sent': true});
+  }
+  if (req.url.path == '/api/v1/auth/otp/verify') {
+    final b = jsonDecode(req.body) as Map<String, dynamic>;
+    onVerify?.call(b);
+    if (b['code'] == '123456') {
+      return envelope({
+        'access_token': fakeJwt(),
+        'refresh_token': 'r1',
+        'expires_in': 3600,
+      });
+    }
+    return http.Response(
+      jsonEncode({
+        'ok': false,
+        'error': {'code': 'UNAUTHORIZED', 'message': 'no'},
+      }),
+      401,
       headers: {'Content-Type': 'application/json'},
     );
+  }
+  return http.Response('not found', 404);
+});
 
-MockClient backend() => MockClient((req) async {
-      if (req.url.path == '/api/v1/auth/otp/request') {
-        return envelope({'sent': true});
-      }
-      if (req.url.path == '/api/v1/auth/otp/verify') {
-        final b = jsonDecode(req.body) as Map;
-        if (b['code'] == '123456') {
-          return envelope({
-            'access_token': fakeJwt(),
-            'refresh_token': 'r1',
-            'expires_in': 3600,
-          });
-        }
-        return http.Response(
-          jsonEncode({
-            'ok': false,
-            'error': {'code': 'UNAUTHORIZED', 'message': 'no'}
-          }),
-          401,
-          headers: {'Content-Type': 'application/json'},
-        );
-      }
-      return http.Response('not found', 404);
-    });
-
-Session testSession() => Session(
+Session testSession({void Function(Map<String, dynamic> body)? onVerify}) =>
+    Session(
       baseUrl: 'http://x.test',
-      apiKey: 'k',
+      clientId: 'user-android',
       role: AuthRole.user,
       store: MemoryTokenStore(),
-      client: backend(),
+      client: backend(onVerify: onVerify),
     );
 
-Future<void> pumpFlow(WidgetTester tester, Session session,
-    SessionController controller) async {
+Future<void> pumpFlow(
+  WidgetTester tester,
+  Session session,
+  SessionController controller,
+) async {
   await tester.pumpWidget(
     MaterialApp(
       home: OtpFlow(session: session, controller: controller),
@@ -67,7 +77,8 @@ Future<void> pumpFlow(WidgetTester tester, Session session,
 
 void main() {
   testWidgets('happy path signs in', (tester) async {
-    final session = testSession();
+    final verified = <Map<String, dynamic>>[];
+    final session = testSession(onVerify: verified.add);
     final controller = SessionController(session);
     await pumpFlow(tester, session, controller);
 
@@ -82,6 +93,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
     expect(controller.signedIn, isTrue);
+    expect(verified.single['client_id'], 'user-android');
   });
 
   testWidgets('wrong code stays put with an error', (tester) async {
@@ -130,7 +142,8 @@ void main() {
   });
 
   testWidgets('code auto-submits and resend cools down', (tester) async {
-    final session = testSession();
+    final verified = <Map<String, dynamic>>[];
+    final session = testSession(onVerify: verified.add);
     final controller = SessionController(session);
     await pumpFlow(tester, session, controller);
 
@@ -147,6 +160,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
     expect(controller.signedIn, isTrue);
+    expect(verified.single['client_id'], 'user-android');
   });
 
   group('splash', () {

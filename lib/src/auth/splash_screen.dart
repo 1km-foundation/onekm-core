@@ -48,9 +48,10 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       final cache = await widget.cacheOpener();
       try {
+        // Reference reads are open (no auth): no headers needed.
         final api = OneKmApi(
           baseUrl: widget.session.baseUrl,
-          headers: () async => {'x-api-key': widget.session.apiKey},
+          headers: () async => <String, String>{},
           client: widget.session.httpClient,
         );
         await cache.config(api);
